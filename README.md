@@ -2,6 +2,10 @@
 
 Converte a imagem de um ECG em papel (scan, PDF rasterizado ou foto) em sinais de 12 derivações em mV, a 500 Hz, usando apenas visão computacional clássica: geometria da grade, morfologia matemática, programação dinâmica e restrições fisiológicas. Não há nenhum modelo treinado.
 
+Há também um [experimento opcional de U-Net com pesos programados](docs/programmed-unet.md)
+para apoiar a segmentação, sem treino por gradiente. Use `--trace-support programmed-unet`
+com o extra `wsp`. O padrão permanece clássico e o experimento exige avaliação separada.
+
 ![exemplo](docs/exemplo.png)
 
 ## Uso
@@ -206,3 +210,4 @@ pytest -q tests
 - Serra J. Image Analysis and Mathematical Morphology. Academic Press, 1982.
 - Otsu N. A threshold selection method from gray-level histograms. IEEE SMC, 1979.
 - Viterbi AJ. Error bounds for convolutional codes and an asymptotically optimum decoding algorithm. IEEE Trans Inf Theory, 1967.
+
