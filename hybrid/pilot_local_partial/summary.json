@@ -1,0 +1,51 @@
+{
+  "protocol": "synthetic transfer pilot; zero-fill missing; no post-hoc alignment; pooled SNR per image",
+  "environment": {
+    "python": "3.12.4",
+    "platform": "macOS-15.6.1-arm64-arm-64bit",
+    "torch": "2.15.0",
+    "numpy": "2.5.4",
+    "opencv": "5.0.0",
+    "device": "mps"
+  },
+  "seed": 20261114,
+  "pairs": [
+    {
+      "id": "00_3x4+1_none",
+      "format": "3x4+1",
+      "degrade": "none",
+      "classic": 22.911681768082772,
+      "hybrid": 12.817358664709902,
+      "delta": -10.09432310337287,
+      "structure_equal": true,
+      "status": "ok"
+    },
+    {
+      "id": "01_3x4+1_medium",
+      "format": "3x4+1",
+      "degrade": "medium",
+      "classic": 22.17031027964974,
+      "hybrid": 11.839730924601588,
+      "delta": -10.330579355048153,
+      "structure_equal": true,
+      "status": "ok"
+    }
+  ],
+  "formats": [
+    {
+      "format": "3x4+1",
+      "n": 2,
+      "classic": 22.540996023866256,
+      "hybrid": 12.328544794655745,
+      "delta": -10.212451229210512
+    }
+  ],
+  "model": {
+    "source": "https://www.kaggle.com/api/v1/datasets/download/dangnh0611/ecg-checkpoints/FINAL_01-19__21-15-59.746642_ALLDATA_FINAL_COAT512_VGG1024_GT1000_LR2en4_SEED980611_ep3_step70007_val_SNR28.006985.ckpt",
+    "source_bytes": 941216583,
+    "ema_decay": 0.999,
+    "tensors": 664,
+    "sha256": "1a02ddd879030969c7ed2b80f63b657f0e85c172b913be54760535b5141f9c67",
+    "upstream_commit": "8358d5b09a5b9519275e9b54c11716da5752a9d6"
+  }
+}

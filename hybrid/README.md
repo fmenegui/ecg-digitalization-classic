@@ -5,6 +5,20 @@ EMA 0,999, do [5º lugar do Kaggle](https://github.com/dangnh0611/kaggle_ecg_dig
 Não é uma reprodução da submissão: substitui a retificação e os recortes
 do template por geometria, layout e calibração encontrados pelo ecgdig.
 
+## Google Colab
+
+Abra [`colab_kaggle5.ipynb`](colab_kaggle5.ipynb) em uma sessão Colab com GPU.
+Como este repositório é privado, o notebook lê `GITHUB_TOKEN` dos segredos
+do Colab (ou pede um token em campo oculto). Basta permissão de leitura de
+conteúdo para este repositório. O token não entra em URLs ou relatórios.
+Não é necessário token Kaggle para os pesos públicos. Nenhuma célula escreve
+no GitHub. O notebook resolve o commit do branch `hibrido`, executa o piloto,
+exibe tabelas e figura e exporta um ZIP; salvar no Drive é opcional.
+
+O caminho CUDA usa o decoder integral em FP16. Os testes locais validaram
+contratos e equivalência das faixas; o notebook foi validado estruturalmente,
+mas uma sessão Colab conectada é necessária para verificar a execução CUDA.
+
 ## Contratos de integração
 
 1. O mapa clássico decide orientação, linhas, pulsos, velocidade, duração,
@@ -48,7 +62,7 @@ globais. Testes comparam as faixas contra os blocos integrais. Isso limita
 temporários sem alterar pesos ou reduzir a resolução de 1024×1024. O consumo
 e a velocidade dependem do dispositivo; `mps` e `cuda` podem ser selecionados.
 Para limitar a alocação em Metal, execute com
-`PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.5 PYTORCH_MPS_LOW_WATERMARK_RATIO=0.4`.
+`PYTORCH_MPS_HIGH_WATERMARK_RATIO=0.6 PYTORCH_MPS_LOW_WATERMARK_RATIO=0.4`.
 
 ## Protocolo do piloto
 

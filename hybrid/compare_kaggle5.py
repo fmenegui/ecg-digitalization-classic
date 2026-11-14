@@ -10,6 +10,7 @@ from dataclasses import replace
 import hashlib
 import html
 import json
+import platform
 from pathlib import Path
 import time
 import traceback
@@ -131,7 +132,13 @@ def report(records,out,a):
         pp=[p for p in pairs if p['format']==fmt]
         formats.append(dict(format=fmt,n=len(pp),classic=float(np.mean([p['classic'] for p in pp])),
                             hybrid=float(np.mean([p['hybrid'] for p in pp])),delta=float(np.mean([p['delta'] for p in pp]))))
+    with (out/'paired.csv').open('w',newline='') as f:
+        w=csv.DictWriter(f,['id','format','degrade','classic','hybrid','delta','structure_equal','status'])
+        w.writeheader();w.writerows(pairs)
+    import torch
     summary=dict(protocol='synthetic transfer pilot; zero-fill missing; no post-hoc alignment; pooled SNR per image',
+                 environment=dict(python=platform.python_version(),platform=platform.platform(),
+                                  torch=torch.__version__,numpy=np.__version__,opencv=cv2.__version__,device=a.device),
                  seed=a.seed,pairs=pairs,formats=formats,model=json.loads((Path(a.model)/'provenance.json').read_text()))
     (out/'summary.json').write_text(json.dumps(summary,indent=2)+'\n')
     with (out/'per_format.csv').open('w',newline='') as f:

@@ -88,26 +88,41 @@ class Kaggle5:
         self.dtype=torch.float16
         self.model.to(device=self.device,dtype=self.dtype).eval()
         self.model.requires_grad_(False)
-        # Head consists only of local convolutions and per-pixel channel norms.
-        # Evaluate overlapping strips to avoid a full 384x1024x1024 temporary;
-        # encoder/attention and the decoder still see the complete window.
-        head=self.model.seg_head
-        class TiledHead(torch.nn.Module):
-            def __init__(self, head):
-                super().__init__();self.head=head
-            def forward(self,x):
-                return tiled_local_head(self.head,x)
-        self.model.seg_head=TiledHead(head)
-        if cfg.model.decoder.attn_type is not None or cfg.model.decoder.norm_layer != 'layernorm' or cfg.model.decoder.interpolation_mode != 'nearest':
-            raise ValueError('Tiled decoder requires the published local LayerNorm/nearest configuration')
-        class TiledBlock(torch.nn.Module):
-            def __init__(self,block):
-                super().__init__();self.block=block
-            def forward(self,x,height,width,skip_connection=None):
-                if height < 256:
-                    return self.block(x,height,width,skip_connection=skip_connection)
-                return tiled_decoder_block(self.block,x,height,width,skip_connection)
-        self.model.decoder.blocks=torch.nn.ModuleList([TiledBlock(b) for b in self.model.decoder.blocks])
+        if self.device.type != 'cuda':
+            # Head consists only of local convolutions and per-pixel channel norms.
+            # Evaluate overlapping strips to avoid a full 384x1024x1024 temporary;
+            # encoder/attention and the decoder still see the complete window.
+            head=self.model.seg_head
+            class TiledHead(torch.nn.Module):
+                def __init__(self, head):
+                    super().__init__();self.head=head
+                def forward(self,x):
+                    return tiled_local_head(self.head,x)
+            self.model.seg_head=TiledHead(head)
+            if cfg.model.decoder.attn_type is not None or cfg.model.decoder.norm_layer != 'layernorm' or cfg.model.decoder.interpolation_mode != 'nearest':
+                raise ValueError('Tiled decoder requires the published local LayerNorm/nearest configuration')
+            class TiledBlock(torch.nn.Module):
+                def __init__(self,block):
+                    super().__init__();self.block=block
+                def forward(self,x,height,width,skip_connection=None):
+                    if height < 256:
+                        return self.block(x,height,width,skip_connection=skip_connection)
+                    return tiled_decoder_block(self.block,x,height,width,skip_connection)
+            self.model.decoder.blocks=torch.nn.ModuleList([TiledBlock(b) for b in self.model.decoder.blocks])
+            decoder=self.model.decoder
+            class FinestDecoder(torch.nn.Module):
+                def __init__(self,decoder):
+                    super().__init__();self.decoder=decoder
+                def forward(self,features):
+                    fs=features[::-1];shapes=[f.shape[2:] for f in fs]
+                    skip=fs[1:] if self.decoder.skip_on_finest else fs[1:-1]
+                    x=self.decoder.center(fs[0])
+                    for i,block in enumerate(self.decoder.blocks):
+                        h,w=shapes[i+1] if i+1<len(shapes) else (2*h,2*w)
+                        x=block(x,h,w,skip_connection=skip[i] if i<len(skip) else None)
+                    # Only finest scale is consumed by SignalFineHeatmapModel.
+                    return [x]
+            self.model.decoder=FinestDecoder(decoder)
         self.template=anonymous_template()
         self.window_seconds=2.5
         self.progress=None
@@ -139,7 +154,9 @@ class Kaggle5:
             positions.append(xs);coords.append(ys)
             if self.progress is not None:
                 self.progress(dict(window=windows,seconds=time.perf_counter()-clock))
+            del logits,tensor
+            if self.device.type=='mps': torch.mps.empty_cache()
         xx=np.concatenate(positions);yy=np.concatenate(coords)
         out=np.interp(xn,xx,yy)
         return out,dict(windows=windows,range_edge_fraction=edge_count/(1000*windows),
-                        template='anonymous_nominal_grid',decoder='official_argmax',device=str(self.device),precision='float16')
+                        template='anonymous_nominal_grid',decoder='official_argmax',device=str(self.device),precision='float16',local_tiles=self.device.type!='cuda')
