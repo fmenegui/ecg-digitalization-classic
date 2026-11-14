@@ -52,6 +52,10 @@ git -C ../kaggle-5th checkout 8358d5b09a5b9519275e9b54c11716da5752a9d6
 O downloader baixa apenas os tensores EMA usados na inferência (aproximadamente
 236 MB, em vez do checkpoint Lightning de 941 MB), verifica CRCs do ZIP e
 salva SHA-256, origem e configuração em `models/kaggle5/provenance.json`.
+O modo padrão `--mode auto` tenta HTTP Range e, se indisponível, baixa o
+checkpoint completo. No Colab, o notebook usa `--mode full` diretamente para
+evitar depender de suporte a Range/redirecionamentos. O arquivo completo é
+removido depois da extração; ficam apenas os pesos EMA e a configuração.
 Os pesos ficam fora do Git. O código upstream é usado sob sua licença MIT;
 não foi copiado para este repositório.
 

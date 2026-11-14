@@ -62,10 +62,8 @@ class DescriptorUnpickler(pickle.Unpickler):
         return Node
     def persistent_load(self, pid): return pid
 
-def download(out):
+def extract_ema(remote, out, source_bytes):
     import torch
-    out = Path(out); out.mkdir(parents=True, exist_ok=True)
-    remote = Remote(BASE+FILE)
     z = zipfile.ZipFile(remote)
     pkl = next(n for n in z.namelist() if n.endswith('/data.pkl'))
     obj = DescriptorUnpickler(io.BytesIO(z.read(pkl))).load()
@@ -77,7 +75,7 @@ def download(out):
     infos = {v[1][0][2]:z.getinfo(prefix+str(v[1][0][2])) for v in selected.values()}
     start = min(i.header_offset for i in infos.values())
     end = max(i.header_offset+30+len(i.filename.encode())+65536+i.compress_size for i in infos.values())
-    end = min(end,remote.size)
+    end = min(end,source_bytes)
     print(f'Downloading EMA {decay}: {len(selected)} tensors, {(end-start)/1e6:.1f} MB',flush=True)
     remote.seek(start); block = remote.read(end-start)
     arrays = {}
@@ -97,11 +95,70 @@ def download(out):
         tensor = torch.frombuffer(bytearray(arrays[storage[2]]), dtype=dtype_map[storage[1]])
         result[name] = torch.as_strided(tensor,shape,stride,offset).clone()
     target=out/'ema.pt'
-    torch.save(result,target)
-    subprocess.run(['curl','--fail','-sSL','--max-time','60','-o',str(out/'config.yaml'),BASE+CONFIG],check=True)
-    meta={'source':BASE+FILE,'source_bytes':remote.size,'ema_decay':decay,'tensors':len(result),'sha256':hashlib.file_digest(target.open('rb'),'sha256').hexdigest(),'upstream_commit':'8358d5b09a5b9519275e9b54c11716da5752a9d6'}
+    temporary=out/'ema.part.pt'
+    torch.save(result,temporary)
+    temporary.replace(target)
+    with target.open('rb') as stream:
+        digest=hashlib.file_digest(stream,'sha256').hexdigest()
+    return {'source':BASE+FILE,'source_bytes':source_bytes,'ema_decay':decay,'tensors':len(result),'sha256':digest,'upstream_commit':'8358d5b09a5b9519275e9b54c11716da5752a9d6'}
+
+def curl_file(url, target, timeout=900):
+    command=['curl','--fail','--location','--silent','--show-error',
+             '--retry','3','--retry-delay','2','--connect-timeout','30',
+             '--max-time',str(timeout),'--output',str(target),url]
+    process=subprocess.run(command,capture_output=True,text=True)
+    if process.returncode:
+        raise RuntimeError(f'curl terminou com código {process.returncode}: {process.stderr.strip()}')
+
+def download(out, mode='auto'):
+    out=Path(out);out.mkdir(parents=True,exist_ok=True)
+    meta=None
+    if mode in ('auto','range'):
+        try:
+            remote=Remote(BASE+FILE)
+            meta=extract_ema(remote,out,remote.size)
+            meta['download_mode']='range'
+        except Exception as error:
+            if mode=='range': raise
+            print(f'Download parcial indisponível ({type(error).__name__}: {error}).',flush=True)
+            print('Alternativa: baixar checkpoint completo (~941 MB), sem depender de HTTP Range.',flush=True)
+    if meta is None:
+        archive=out/'source.ckpt'
+        partial=out/'source.ckpt.part'
+        try:
+            if not archive.exists():
+                curl_file(BASE+FILE,partial)
+                if not zipfile.is_zipfile(partial):
+                    raise RuntimeError('Kaggle não retornou um checkpoint ZIP válido. Verifique a mensagem HTTP acima.')
+                partial.replace(archive)
+            with archive.open('rb') as stream:
+                meta=extract_ema(stream,out,archive.stat().st_size)
+            meta['download_mode']='full'
+        finally:
+            # Only remove temporary weights downloaded by this script.
+            archive.unlink(missing_ok=True)
+            partial.unlink(missing_ok=True)
+    config_tmp=out/'config.yaml.part'
+    curl_file(BASE+CONFIG,config_tmp,timeout=120)
+    from omegaconf import OmegaConf
+    config=OmegaConf.load(config_tmp)
+    if OmegaConf.select(config,'model._target_') != 'ecg.model.signal_fine_heatmap_model.SignalFineHeatmapModel':
+        raise RuntimeError('A configuração baixada não corresponde ao modelo esperado; pode ser uma página de erro.')
+    config_tmp.replace(out/'config.yaml')
     (out/'provenance.json').write_text(json.dumps(meta,indent=2)+'\n')
-    print(json.dumps(meta,indent=2))
+    print(json.dumps(meta,indent=2),flush=True)
+    return meta
 
 if __name__ == '__main__':
-    p=argparse.ArgumentParser();p.add_argument('--out',default='models/kaggle5');a=p.parse_args();download(a.out)
+    import sys
+    p=argparse.ArgumentParser()
+    p.add_argument('--out',default='models/kaggle5')
+    p.add_argument('--mode',choices=['auto','range','full'],default='auto')
+    a=p.parse_args()
+    try:
+        download(a.out,a.mode)
+    except Exception as error:
+        import traceback
+        print(f'FALHA NO DOWNLOAD: {type(error).__name__}: {error}',file=sys.stderr,flush=True)
+        traceback.print_exc()
+        sys.exit(1)
