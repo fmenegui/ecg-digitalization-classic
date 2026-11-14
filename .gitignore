@@ -10,3 +10,6 @@ ext/
 # benchmark LITFL: imagens baixadas e saídas
 benchmarks/litfl/cache/
 results/
+.venv/
+models/
+

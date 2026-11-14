@@ -53,6 +53,9 @@ class Config:
     row_beats: bool = True       # linhas nas pontas sem QRS simultâneos aos das outras saem
     ink_model: str = ""         # caminho do ONNX do segmentador de traço (modo híbrido)
     ink_mix: float = 1.0        # 1 = só a rede; <1 mistura com o mapa clássico
+    waveform_model: str = ""    # diretório EMA/config do 5º lugar; opcional, só leitura final
+    waveform_source: str = ""   # checkout upstream kaggle_ecg_digitization
+    waveform_device: str = "cpu"
     band_sp: float = 1.6        # faixa de busca do traço: +-band_sp espaçamentos de linha
     fit: str = "none"          # "lsf": renderização inversa com o perfil de pena medido
 
@@ -747,6 +750,8 @@ def _vote_x0(xl, xe, rad, span_px, R, weak=()):
 
 def digitize(image, cfg: Config | None = None, return_debug: bool = False):
     cfg = cfg or Config()
+    if cfg.ink_model and cfg.waveform_model:
+        raise ValueError("Avalie ink_model e waveform_model separadamente neste experimento")
     img = cv2.imread(image, cv2.IMREAD_COLOR) if isinstance(image, str) else image
     if img is None:
         raise FileNotFoundError(image)
@@ -756,13 +761,6 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
     rect, pap, ginfo = rectify(img, R, cfg.ppmm, cfg.nonrigid, major_snap=cfg.major_snap,
                                fine_snap=cfg.fine_snap)
     D, glev = ink_map(rect, pap, R, return_grid_level=True)
-    if cfg.ink_model:
-        # modo híbrido: a rede diz onde está a tinta do traço; o resto segue clássico
-        from .inkmodel import predict
-        Pn = predict(rect, cfg.ink_model)
-        Pn[pap == 0] = 0.0
-        D = Pn if cfg.ink_mix >= 1.0 else (cfg.ink_mix * Pn + (1 - cfg.ink_mix) * D).astype(np.float32)
-        glev = 0.0 if cfg.ink_mix >= 1.0 else glev
     B = binarize(D, R, glev)
     (rect, pap, D, B), rot = _orient([rect, pap, D, B], R)
 
@@ -994,6 +992,23 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
         [nm for row in rows_spec for nm in row]
 
     # ------------------------------------------------------- extração por segmento
+    # Página/layout/pulsos/calibração foram decididos SOMENTE com D/B clássicos.
+    # A probabilidade neural orienta o Viterbi, mas as bordas e o ajuste da pena
+    # continuam medidos na tinta original: um heatmap não é a largura da pena.
+    D_track, B_track = D, B
+    if cfg.ink_model:
+        from .inkmodel import predict
+        if not 0 <= cfg.ink_mix <= 1:
+            raise ValueError("ink_mix deve estar em [0,1]")
+        pn = predict(rect, cfg.ink_model)
+        pn[pap == 0] = 0
+        D_track = ((1-cfg.ink_mix)*D + cfg.ink_mix*pn).astype(np.float32)
+        B_track = binarize(D_track, R, glev if cfg.ink_mix < 1 else 0)
+    waveform = None
+    if cfg.waveform_model:
+        from .kaggle5 import get_predictor
+        waveform = get_predictor(cfg.waveform_model, cfg.waveform_source, cfg.waveform_device)
+    hybrid_segments = []
     meas = {l: [] for l in names}  # lista de arrays (N) com NaN
     wts = {l: [] for l in names}   # pesos de confiança correspondentes
     # nível de referência da tinta do traço (para a ponte entre segmentos no Viterbi)
@@ -1027,7 +1042,7 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
             xa, xb = max(0, xa), min(W, xb)
             if xb - xa < 10:
                 continue
-            runs = column_runs(B, D, ya, yb, xa, xb)
+            runs = column_runs(B_track, D_track, ya, yb, xa, xb)
             _drop_label_runs(runs, xa, label_boxes)
             others = [float(v) for i2, v in enumerate(rows) if i2 != r]
             # na extração final, continuidade das bordas (letras de rótulo coladas ao traço);
@@ -1222,6 +1237,14 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
         if j["n1"] < N and K4 >= 2:
             sl = np.polyfit(xg[-K4:], yg[-K4:], 1)[0]
             yn = np.where((xn > xg[-1]) & (xn <= xs_e + 1.0), yg[-1] + 0.5 * sl * (xn - xg[-1]), yn)
+        if waveform is not None:
+            # Usa a janela e a escala encontradas pelo clássico, nunca nomes ou
+            # posições de uma página 3x4. O backend retorna coordenadas na imagem.
+            yn_neural, info = waveform.predict(rect, xn, base, gain*R,
+                                               sc_r[rr]*speed*R)
+            # Mesma cobertura nas duas variantes; não inventa bordas ausentes.
+            yn = np.where(np.isfinite(yn), yn_neural, np.nan)
+            hybrid_segments.append(dict(lead=j["lead"], row=rr, **info))
         v = (base - yn) / (gain * R)
         if j["n0"] == 0:
             v = _cut_leading_pulse(v, cfg.fs)
@@ -1235,7 +1258,7 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
         sh = np.interp(xn, xs, j["shared"].astype(float)) > 0.5
         w[j["n0"]:j["n1"]] = np.where(sh, 0.05, 1.0)
         wts[lead].append(w)
-        traces_dbg.append((xs, yc, valid))
+        traces_dbg.append((xn, yn, np.isfinite(yn)) if waveform is not None else (xs, yc, valid))
         if return_debug:
             jobs_dbg.append(dict(lead=lead, row=rr, n0=j["n0"], n1=j["n1"], xn=xn, yn=(base - v * gain * R) if lead == j["lead"] else None,
                                  xg=xg, yg=yg, base=base, gain=gain, top=j["top"], bot=j["bot"], xa=j["xa"]))
@@ -1263,6 +1286,8 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
                grid_snap_mm=ginfo.get("major_snap_mm"), grid_fine_mm=ginfo.get("fine_snap_mm"), line_width_px=lw, line_width_h_px=2 * rad_h,
                pulses_found=sum(p is not None for p in pulses),
                pulses_right=sum(p is not None for p in rpulses), gain_rows_inferred=gain_flags)
+    res["hybrid"] = dict(ink_model=bool(cfg.ink_model), waveform_model=bool(cfg.waveform_model),
+                         structural_map="classic", segments=hybrid_segments)
     if return_debug:
         dbg = rect.copy()
         for xs, yi, valid in traces_dbg:
@@ -1281,6 +1306,7 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
         res["rectified"] = rect
         res["jobs"] = jobs_dbg
         res["ink"] = D
+        res["tracking_ink"] = D_track
     return res
 
 
@@ -1325,3 +1351,4 @@ def einthoven_fuse(sig, nmeas, fill=False):
         mm = m & ~has[III]
         s[III, mm] = (IIv - Iv)[mm]
     return s
+
