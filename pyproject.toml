@@ -8,6 +8,7 @@ dependencies = ["numpy>=1.23", "opencv-python-headless>=4.7", "scipy>=1.9", "sci
 
 [project.optional-dependencies]
 dev = ["pytest", "matplotlib"]
+wsp = ["torch>=2.2"]
 
 [project.scripts]
 ecgdig = "ecgdig.__main__:main"
@@ -18,3 +19,4 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
 packages = ["ecgdig"]
+

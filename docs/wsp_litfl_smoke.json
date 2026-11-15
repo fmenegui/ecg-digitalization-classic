@@ -1,0 +1,64 @@
+{
+  "kind": "real_image_execution_smoke_test",
+  "source_url": "https://litfl.com/wp-content/uploads/2018/08/ECG-Right-Bundle-Branch-Block-RBBB-6.jpg",
+  "ground_truth_signal_available": false,
+  "quantitative_accuracy_claim": false,
+  "cli_metadata_defaults": {
+    "speed_mm_per_s": 25.0,
+    "duration_s": 10.0,
+    "gain": "inferred"
+  },
+  "methods": {
+    "classic": {
+      "status": "ok",
+      "leads": 12,
+      "samples_per_lead": 5000,
+      "layout": "3x4",
+      "finite_fraction_of_full_output_not_coverage": 0.24478333333333332,
+      "trace_support": null
+    },
+    "unet": {
+      "status": "ok",
+      "leads": 12,
+      "samples_per_lead": 5000,
+      "layout": "3x4",
+      "finite_fraction_of_full_output_not_coverage": 0.24478333333333332,
+      "trace_support": {
+        "architecture": "ProgrammedTraceUNet-v1",
+        "parameters": 2057,
+        "nonzero_parameters": 96,
+        "weights_sha256": "67c6366f625beab9fd8c29c3b1e388492f7e8f69dcb377122975b68ac65f5756",
+        "gradient_steps": 0,
+        "pretrained_weights": false,
+        "recipe": {
+          "decoder_context": 0.25,
+          "coarse_context": 0.5,
+          "ink_weight": 6.0,
+          "neutral_weight": 0.5,
+          "ridge_weight": 0.75,
+          "contrast_weight": 0.5,
+          "bias": -2.0
+        },
+        "channels": [
+          "classical_ink",
+          "neutral_darkness",
+          "horizontal_ridge",
+          "vertical_ridge",
+          "rising_ridge",
+          "falling_ridge",
+          "local_contrast",
+          "paper"
+        ],
+        "scores_calibrated": false,
+        "threshold": 0.55,
+        "radius_mm": 0.3,
+        "ink_floor": 0.1,
+        "added_pixels": 0,
+        "classical_pixels": 67855,
+        "optical_density_preserved": true
+      }
+    }
+  },
+  "outputs_identical_at_csv_precision_1e_5_mv": true,
+  "interpretation": "The programmed support added zero pixels for this image. Existing reconstruction errors persist. Finite output fraction includes NaNs outside the printed lead interval and is not accuracy or displayed-sample coverage."
+}

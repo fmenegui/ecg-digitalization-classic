@@ -1,0 +1,249 @@
+{
+  "kind": "synthetic_development_pilot",
+  "hidden_test": false,
+  "known_metadata": [
+    "layout",
+    "speed",
+    "gain",
+    "duration"
+  ],
+  "geometry": "classical automatic",
+  "model": {
+    "architecture": "ProgrammedTraceUNet-v1",
+    "parameters": 2057,
+    "nonzero_parameters": 96,
+    "weights_sha256": "67c6366f625beab9fd8c29c3b1e388492f7e8f69dcb377122975b68ac65f5756",
+    "gradient_steps": 0,
+    "pretrained_weights": false,
+    "recipe": {
+      "decoder_context": 0.25,
+      "coarse_context": 0.5,
+      "ink_weight": 6.0,
+      "neutral_weight": 0.5,
+      "ridge_weight": 0.75,
+      "contrast_weight": 0.5,
+      "bias": -2.0
+    },
+    "channels": [
+      "classical_ink",
+      "neutral_darkness",
+      "horizontal_ridge",
+      "vertical_ridge",
+      "rising_ridge",
+      "falling_ridge",
+      "local_contrast",
+      "paper"
+    ],
+    "scores_calibrated": false
+  },
+  "metric": "aggregate displayed-sample SNR, no alignment, missing=zero",
+  "official_challenge_metric": false,
+  "cases": [
+    {
+      "seed": 91000,
+      "degradation": "none",
+      "classic": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": null,
+        "snr_db": 15.74893086873278,
+        "rmse_mv": 0.022223970980917464,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 11.425060153997038
+      },
+      "programmed_unet": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": {
+          "architecture": "ProgrammedTraceUNet-v1",
+          "parameters": 2057,
+          "nonzero_parameters": 96,
+          "weights_sha256": "67c6366f625beab9fd8c29c3b1e388492f7e8f69dcb377122975b68ac65f5756",
+          "gradient_steps": 0,
+          "pretrained_weights": false,
+          "recipe": {
+            "decoder_context": 0.25,
+            "coarse_context": 0.5,
+            "ink_weight": 6.0,
+            "neutral_weight": 0.5,
+            "ridge_weight": 0.75,
+            "contrast_weight": 0.5,
+            "bias": -2.0
+          },
+          "channels": [
+            "classical_ink",
+            "neutral_darkness",
+            "horizontal_ridge",
+            "vertical_ridge",
+            "rising_ridge",
+            "falling_ridge",
+            "local_contrast",
+            "paper"
+          ],
+          "scores_calibrated": false,
+          "threshold": 0.55,
+          "radius_mm": 0.3,
+          "ink_floor": 0.1,
+          "added_pixels": 438,
+          "classical_pixels": 40143,
+          "optical_density_preserved": true
+        },
+        "snr_db": 15.795269908472964,
+        "rmse_mv": 0.022105722267744665,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 31.15664281300269
+      },
+      "delta_snr_db": 0.04633903974018416
+    },
+    {
+      "seed": 91001,
+      "degradation": "medium",
+      "classic": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": null,
+        "snr_db": 20.860139355828586,
+        "rmse_mv": 0.018532645186412046,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 14.221064826007932
+      },
+      "programmed_unet": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": {
+          "architecture": "ProgrammedTraceUNet-v1",
+          "parameters": 2057,
+          "nonzero_parameters": 96,
+          "weights_sha256": "67c6366f625beab9fd8c29c3b1e388492f7e8f69dcb377122975b68ac65f5756",
+          "gradient_steps": 0,
+          "pretrained_weights": false,
+          "recipe": {
+            "decoder_context": 0.25,
+            "coarse_context": 0.5,
+            "ink_weight": 6.0,
+            "neutral_weight": 0.5,
+            "ridge_weight": 0.75,
+            "contrast_weight": 0.5,
+            "bias": -2.0
+          },
+          "channels": [
+            "classical_ink",
+            "neutral_darkness",
+            "horizontal_ridge",
+            "vertical_ridge",
+            "rising_ridge",
+            "falling_ridge",
+            "local_contrast",
+            "paper"
+          ],
+          "scores_calibrated": false,
+          "threshold": 0.55,
+          "radius_mm": 0.3,
+          "ink_floor": 0.1,
+          "added_pixels": 0,
+          "classical_pixels": 42297,
+          "optical_density_preserved": true
+        },
+        "snr_db": 20.860139355828586,
+        "rmse_mv": 0.018532645186412046,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 12.211534277012106
+      },
+      "delta_snr_db": 0.0
+    },
+    {
+      "seed": 91002,
+      "degradation": "heavy",
+      "classic": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": null,
+        "snr_db": 8.435114780276228,
+        "rmse_mv": 0.06395956017885591,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 17.806319492010516
+      },
+      "programmed_unet": {
+        "status": "ok",
+        "layout": "3x4+1",
+        "support": {
+          "architecture": "ProgrammedTraceUNet-v1",
+          "parameters": 2057,
+          "nonzero_parameters": 96,
+          "weights_sha256": "67c6366f625beab9fd8c29c3b1e388492f7e8f69dcb377122975b68ac65f5756",
+          "gradient_steps": 0,
+          "pretrained_weights": false,
+          "recipe": {
+            "decoder_context": 0.25,
+            "coarse_context": 0.5,
+            "ink_weight": 6.0,
+            "neutral_weight": 0.5,
+            "ridge_weight": 0.75,
+            "contrast_weight": 0.5,
+            "bias": -2.0
+          },
+          "channels": [
+            "classical_ink",
+            "neutral_darkness",
+            "horizontal_ridge",
+            "vertical_ridge",
+            "rising_ridge",
+            "falling_ridge",
+            "local_contrast",
+            "paper"
+          ],
+          "scores_calibrated": false,
+          "threshold": 0.55,
+          "radius_mm": 0.3,
+          "ink_floor": 0.1,
+          "added_pixels": 1,
+          "classical_pixels": 54817,
+          "optical_density_preserved": true
+        },
+        "snr_db": 8.436409564397309,
+        "rmse_mv": 0.063950026595741,
+        "coverage": 1.0,
+        "missing_samples": 0,
+        "displayed_samples": 18750,
+        "seconds": 25.418894396003452
+      },
+      "delta_snr_db": 0.0012947841210806388
+    }
+  ],
+  "summary": {
+    "classic": {
+      "mean_snr_db": 15.014728334945865,
+      "mean_rmse_mv": 0.03490539211539514,
+      "mean_coverage": 1.0,
+      "failures": 0,
+      "mean_seconds": 14.484148157338495
+    },
+    "programmed_unet": {
+      "mean_snr_db": 15.030606276232954,
+      "mean_rmse_mv": 0.03486279801663257,
+      "mean_coverage": 1.0,
+      "failures": 0,
+      "mean_seconds": 22.92902382867275
+    }
+  },
+  "source_parent_commit": "49b836f0beb92a864ef35a858e6c46e63d334688",
+  "software": {
+    "python": "3.12.14",
+    "torch": "2.15.0+cpu",
+    "numpy": "2.3.5",
+    "scipy": "1.17.0",
+    "opencv": "5.0.0",
+    "device": "cpu",
+    "threads": 2
+  }
+}

@@ -745,7 +745,13 @@ def _vote_x0(xl, xe, rad, span_px, R, weak=()):
     return float(np.median(Ws))
 
 
-def digitize(image, cfg: Config | None = None, return_debug: bool = False):
+def digitize(image, cfg: Config | None = None, return_debug: bool = False, *, trace_support=None):
+    """Digitize an ECG, optionally augmenting trace support after rectification.
+
+    trace_support(rect_bgr, paper, R, optical_density, classical_mask) returns
+    (boolean_mask, metadata). Optical density is retained for subpixel fitting.
+    The default path does not import PyTorch or use neural segmentation.
+    """
     cfg = cfg or Config()
     img = cv2.imread(image, cv2.IMREAD_COLOR) if isinstance(image, str) else image
     if img is None:
@@ -764,6 +770,13 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
         D = Pn if cfg.ink_mix >= 1.0 else (cfg.ink_mix * Pn + (1 - cfg.ink_mix) * D).astype(np.float32)
         glev = 0.0 if cfg.ink_mix >= 1.0 else glev
     B = binarize(D, R, glev)
+    support_info = None
+    if trace_support is not None:
+        assisted, support_info = trace_support(rect, pap, R, D.copy(), B.copy())
+        assisted = np.asarray(assisted)
+        if assisted.shape != B.shape or assisted.dtype != np.bool_:
+            raise ValueError("trace_support must return a matching boolean mask")
+        B = assisted
     (rect, pap, D, B), rot = _orient([rect, pap, D, B], R)
 
     rows_all, cov, ext_all, pulses_all, spacing = _rows_pulses(B, pap, R)
@@ -1263,6 +1276,8 @@ def digitize(image, cfg: Config | None = None, return_debug: bool = False):
                grid_snap_mm=ginfo.get("major_snap_mm"), grid_fine_mm=ginfo.get("fine_snap_mm"), line_width_px=lw, line_width_h_px=2 * rad_h,
                pulses_found=sum(p is not None for p in pulses),
                pulses_right=sum(p is not None for p in rpulses), gain_rows_inferred=gain_flags)
+    if support_info is not None:
+        res["trace_support"] = support_info
     if return_debug:
         dbg = rect.copy()
         for xs, yi, valid in traces_dbg:
@@ -1325,3 +1340,4 @@ def einthoven_fuse(sig, nmeas, fill=False):
         mm = m & ~has[III]
         s[III, mm] = (IIv - Iv)[mm]
     return s
+
